@@ -3,6 +3,7 @@ import os.path as osp
 from pycocotools.coco import COCO
 from collections import Counter
 import json
+import torch
 from random import seed, choice, sample
 
 from mmdet.datasets.coco import CocoDataset
@@ -140,8 +141,9 @@ class MyCocoDataset(CocoDataset):
 
             assert len(img_caps) * captions_per_image == len(enc_captions) == len(caplens)
 
-            self.enc_captions = enc_captions
-            self.caplens = caplens
+            self.enc_captions = torch.LongTensor(enc_captions)
+            self.caplens = torch.LongTensor(np.array(caplens).astype(np.long))
+            print(self.caplens[0])
 
             with open(captions_fname, 'w') as f:
                 json.dump(enc_captions, f)
@@ -253,11 +255,13 @@ class MyCocoDataset(CocoDataset):
         if self.with_mask:
             data['gt_masks'] = DC(gt_masks, cpu_only=True)
         if self.with_seg:
-            data['gt_semantic_seg'] = DC(to_tensor(gt_seg), stack=True)
+            data['gt_seg'] = DC(to_tensor(gt_seg.astype(np.long)), stack=True)
         if self.with_cap:
             rnd_idx = idx * self.cpi + np.random.randint(self.cpi)
-            data['gt_caps'] = DC(to_tensor(self.enc_captions[rnd_idx]))
-            data['gt_caplens'] = DC(to_tensor(self.caplens[rnd_idx]))
+            # data['gt_caps'] = DC(to_tensor(self.enc_captions[rnd_idx]))
+            data['gt_caps'] = to_tensor(self.enc_captions[rnd_idx])
+            # data['gt_caplens'] = DC(to_tensor(self.caplens[rnd_idx]))
+            data['gt_caplens'] = to_tensor(np.array(self.caplens[rnd_idx]))
         return data
 
     def prepare_test_img(self, idx):

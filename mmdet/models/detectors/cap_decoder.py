@@ -1,18 +1,20 @@
 import torch
 from torch import nn
 import torchvision
+from torch.nn.utils.rnn import pack_padded_sequence
 
 import os
 import json
 import numpy as np
 
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 class CapDecoder(nn.Module):
     """
     Decoder.
     """
 
-    def __init__(self, attention_dim, embed_dim, decoder_dim, vocab_size, encoder_dim=512, dropout=0.5, feats_size=13):
+    def __init__(self, attention_dim, embed_dim, decoder_dim, vocab_size, encoder_dim, dropout=0.5, feats_size=13, alpha_c=1):
         """
         :param attention_dim: size of attention network
         :param embed_dim: embedding size
@@ -46,6 +48,8 @@ class CapDecoder(nn.Module):
         # lixin
         self.avgpool = nn.AdaptiveAvgPool2d((feats_size, feats_size))
         self.feats_size = feats_size
+        self.loss_cap = nn.CrossEntropyLoss()
+        self.alpha_c = alpha_c
 
     def init_weights(self):
         """
@@ -89,6 +93,7 @@ class CapDecoder(nn.Module):
         :param caption_lengths: caption lengths, a tensor of dimension (batch_size, 1)
         :return: scores for vocabulary, sorted encoded captions, decode lengths, weights, sort indices
         """
+
         # lixin
         encoder_out = self.avgpool(encoder_out)
         encoder_out = encoder_out.permute(0, 2, 3, 1)
@@ -102,9 +107,9 @@ class CapDecoder(nn.Module):
         num_pixels = encoder_out.size(1)
 
         # Sort input data by decreasing lengths; why? apparent below
-        caption_lengths, sort_ind = caption_lengths.squeeze(1).sort(dim=0, descending=True)
+        # caption_lengths, sort_ind = caption_lengths.squeeze(1).sort(dim=0, descending=True)
+        caption_lengths, sort_ind = caption_lengths.sort(dim=0, descending=True)
         encoder_out = encoder_out[sort_ind]
-        print(encoder_out.size())
         encoded_captions = encoded_captions[sort_ind]
 
         # Embedding
@@ -116,6 +121,7 @@ class CapDecoder(nn.Module):
         # We won't decode at the <end> position, since we've finished generating as soon as we generate <end>
         # So, decoding lengths are actual lengths - 1
         decode_lengths = (caption_lengths - 1).tolist()
+
 
         # Create tensors to hold word predicion scores and alphas
         predictions = torch.zeros(batch_size, max(decode_lengths), vocab_size).to(device)
@@ -138,6 +144,25 @@ class CapDecoder(nn.Module):
             alphas[:batch_size_t, t, :] = alpha
 
         return predictions, encoded_captions, decode_lengths, alphas, sort_ind
+
+    def loss(self, scores, caps_sorted, decode_lengths, alphas):
+        losses = {}
+        # Since we decoded starting with <start>, the targets are all words after <start>, up to <end>
+        # decode_lengths = decode_lengths.tolist()
+        targets = caps_sorted[:, 1:]
+
+
+        # Remove timesteps that we didn't decode at, or are pads
+        # pack_padded_sequence is an easy trick to do this
+        scores = pack_padded_sequence(scores, decode_lengths, batch_first=True)
+        # print(scores.data.size())
+        targets = pack_padded_sequence(targets, decode_lengths, batch_first=True)
+        # print(targets.data.size())
+
+
+
+        losses['loss_cap'] = 0.001 * self.loss_cap(scores.data, targets.data) + self.alpha_c * ((1. - alphas.sum(dim=1)) ** 2).mean()
+        return losses
 
 
 class Attention(nn.Module):
@@ -172,6 +197,7 @@ class Attention(nn.Module):
         attention_weighted_encoding = (encoder_out * alpha.unsqueeze(2)).sum(dim=1)  # (batch_size, encoder_dim)
 
         return attention_weighted_encoding, alpha
+
 
 
 if __name__ == "__main__":

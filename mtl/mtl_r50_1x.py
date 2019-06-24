@@ -1,6 +1,6 @@
 # model settings
 model = dict(
-    type='FasterRCNN',
+    type='EncoderDecoder',
     pretrained='modelzoo://resnet50',
     backbone=dict(
         type='ResNet',
@@ -9,6 +9,7 @@ model = dict(
         out_indices=(0, 1, 2, 3),
         frozen_stages=1,
         style='pytorch'),
+    # neck=None,
     neck=dict(
         type='FPN',
         in_channels=[256, 512, 1024, 2048],
@@ -98,13 +99,15 @@ test_cfg = dict(
     # e.g., nms=dict(type='soft_nms', iou_thr=0.5, min_score=0.05)
 )
 # dataset settings
-dataset_type = 'CocoDataset'
-data_root = 'data/coco/'
+dataset_type = 'MyCocoDataset'
+data_root = '/data/home/v-lixxue/coco17/'
 img_norm_cfg = dict(
     mean=[123.675, 116.28, 103.53], std=[58.395, 57.12, 57.375], to_rgb=True)
 data = dict(
     imgs_per_gpu=2,
     workers_per_gpu=2,
+
+
     train=dict(
         type=dataset_type,
         ann_file=data_root + 'annotations/instances_train2017.json',
@@ -115,7 +118,14 @@ data = dict(
         flip_ratio=0.5,
         with_mask=False,
         with_crowd=True,
-        with_label=True),
+        with_label=True,
+        with_cap=True,
+        with_semantic_seg=True,
+        seg_prefix="/data/home/v-lixxue/coco17/annotations/train2017",
+        seg_scale_factor=1,
+        split='TRAIN',
+        cap_f=data_root + 'annotations/caps_coco17.json',
+        cap_dir=data_root + 'annotations/caps/'),
     val=dict(
         type=dataset_type,
         ann_file=data_root + 'annotations/instances_val2017.json',
@@ -126,7 +136,14 @@ data = dict(
         flip_ratio=0,
         with_mask=False,
         with_crowd=True,
-        with_label=True),
+        with_label=True,
+        with_cap = True,
+        with_semantic_seg=True,
+        seg_prefix="/data/home/v-lixxue/coco17/annotations/val2017",
+        seg_scale_factor=1,
+        split = 'VAL',
+        cap_f = data_root + 'annotations/caps_coco17.json',
+        cap_dir = data_root + 'annotations/caps/'),
     test=dict(
         type=dataset_type,
         ann_file=data_root + 'annotations/instances_val2017.json',
@@ -165,3 +182,11 @@ work_dir = './work_dirs/faster_rcnn_r50_fpn_1x'
 load_from = None
 resume_from = None
 workflow = [('train', 1)]
+seg_cfg = dict(ignore_label=255)
+cap_cfg = dict(
+    encoder_dim=256,
+    embed_dim=256,  # dimension of word embeddings,
+    attention_dim=256,  # dimension of attention linear layers,
+    decoder_dim=256,  # dimension of decoder RNN,
+    vocab_size=9490 # len(word_map)
+)

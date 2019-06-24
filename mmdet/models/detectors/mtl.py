@@ -7,6 +7,8 @@ from mmdet.models import builder
 from mmdet.models.registry import DETECTORS
 from mmdet.core import bbox2roi, bbox2result, build_assigner, build_sampler
 
+from .seg_decoder import SegDecoder
+from .cap_decoder import CapDecoder
 
 @DETECTORS.register_module
 class EncoderDecoder(BaseDetector, RPNTestMixin, BBoxTestMixin,
@@ -23,8 +25,9 @@ class EncoderDecoder(BaseDetector, RPNTestMixin, BBoxTestMixin,
                  mask_head=None,
                  train_cfg=None,
                  test_cfg=None,
-                 pretrained=None):
-        super(TwoStageDetector, self).__init__()
+                 pretrained=None,
+                 ):
+        super(EncoderDecoder, self).__init__()
         self.backbone = builder.build_backbone(backbone)
 
         if neck is not None:
@@ -51,20 +54,28 @@ class EncoderDecoder(BaseDetector, RPNTestMixin, BBoxTestMixin,
                 self.mask_roi_extractor = self.bbox_roi_extractor
             self.mask_head = builder.build_head(mask_head)
 
+        seg_cfg = dict(ignore_label=255)
+        cap_cfg = dict(
+            encoder_dim=256,
+            embed_dim=256,  # dimension of word embeddings,
+            attention_dim=256,  # dimension of attention linear layers,
+            decoder_dim=256,  # dimension of decoder RNN,
+            vocab_size=9490,  # len(word_map)
+        )
+        self.seg_decoder = SegDecoder(**seg_cfg)
+        self.cap_decoder = CapDecoder(**cap_cfg)
+
         self.train_cfg = train_cfg
         self.test_cfg = test_cfg
 
         self.init_weights(pretrained=pretrained)
-
-
-
 
     @property
     def with_rpn(self):
         return hasattr(self, 'rpn_head') and self.rpn_head is not None
 
     def init_weights(self, pretrained=None):
-        super(TwoStageDetector, self).init_weights(pretrained)
+        super(EncoderDecoder, self).init_weights(pretrained)
         self.backbone.init_weights(pretrained=pretrained)
         if self.with_neck:
             if isinstance(self.neck, nn.Sequential):
@@ -83,6 +94,8 @@ class EncoderDecoder(BaseDetector, RPNTestMixin, BBoxTestMixin,
             self.mask_head.init_weights()
             if not self.share_roi_extractor:
                 self.mask_roi_extractor.init_weights()
+        self.cap_decoder.init_weights()
+        self.seg_decoder.init_weights()
 
     def extract_feat(self, img):
         x = self.backbone(img)
@@ -93,11 +106,17 @@ class EncoderDecoder(BaseDetector, RPNTestMixin, BBoxTestMixin,
     def forward_train(self,
                       img,
                       img_meta,
-                      gt_bboxes,
-                      gt_labels,
+                      gt_bboxes=None,
+                      gt_labels=None,
                       gt_bboxes_ignore=None,
                       gt_masks=None,
-                      proposals=None):
+                      proposals=None,
+                      gt_seg=None,
+                      gt_caps=None,
+                      gt_caplens=None):
+        # print(img)
+        # print(img.data)
+        # print(img.data.shape)
         x = self.extract_feat(img)
 
         losses = dict()
@@ -189,6 +208,24 @@ class EncoderDecoder(BaseDetector, RPNTestMixin, BBoxTestMixin,
             loss_mask = self.mask_head.loss(mask_pred, mask_targets,
                                             pos_labels)
             losses.update(loss_mask)
+
+        # seg head forward and loss
+        # print(img.size())
+        # print(x[0].size())
+        pred_segs = self.seg_decoder(x)
+        # print(pred_segs)
+        # print(gt_seg)
+        # print(pred_segs.shape)
+        # print(torch.squeeze(gt_seg, dim=1).shape)
+        loss_seg = self.seg_decoder.loss(pred_segs, torch.squeeze(gt_seg, dim=1))
+        # print(type(loss_seg))
+        # print(loss_seg)
+        losses.update(loss_seg)
+
+        # cap head forward and loss
+        # predictions, caps_sorted, decode_lengths, alphas, sort_ind = self.cap_decoder(x[3], gt_caps, gt_caplens)
+        # loss_cap = self.cap_decoder.loss(predictions, caps_sorted, decode_lengths, alphas)
+        # losses.update(loss_cap)
 
         return losses
 

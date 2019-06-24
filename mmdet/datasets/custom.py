@@ -49,6 +49,7 @@ class CustomDataset(Dataset):
                  with_crowd=True,
                  with_label=True,
                  with_semantic_seg=False,
+                 ignore_label=255,
                  seg_prefix=None,
                  seg_scale_factor=1,
                  extra_aug=None,
@@ -114,7 +115,7 @@ class CustomDataset(Dataset):
             size_divisor=self.size_divisor, **self.img_norm_cfg)
         self.bbox_transform = BboxTransform()
         self.mask_transform = MaskTransform()
-        self.seg_transform = SegMapTransform(self.size_divisor)
+        self.seg_transform = SegMapTransform(self.size_divisor, ignore_label)
         self.numpy2tensor = Numpy2Tensor()
 
         # if use extra augmentation

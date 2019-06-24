@@ -120,8 +120,9 @@ class SegMapTransform(object):
     4. pad the image (if needed)
     """
 
-    def __init__(self, size_divisor=None):
+    def __init__(self, size_divisor=None, pad_val=0):
         self.size_divisor = size_divisor
+        self.pad_val = pad_val
 
     def __call__(self, img, scale, flip=False, keep_ratio=True):
         if keep_ratio:
@@ -131,7 +132,7 @@ class SegMapTransform(object):
         if flip:
             img = mmcv.imflip(img)
         if self.size_divisor is not None:
-            img = mmcv.impad_to_multiple(img, self.size_divisor)
+            img = mmcv.impad_to_multiple(img, self.size_divisor, self.pad_val)
         return img
 
 
