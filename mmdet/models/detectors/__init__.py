@@ -11,11 +11,13 @@ from .retinanet import RetinaNet
 from .fcos import FCOS
 from .mtl import EncoderDecoder
 from .seg import SegDecoder
+from .grid_rcnn import GridRCNN
+from .mask_scoring_rcnn import MaskScoringRCNN
 
 __all__ = [
     'BaseDetector', 'SingleStageDetector', 'TwoStageDetector', 'RPN',
     'FastRCNN', 'FasterRCNN', 'MaskRCNN', 'CascadeRCNN', 'HybridTaskCascade',
+    'RetinaNet', 'FCOS', 'GridRCNN', 'MaskScoringRCNN'
     'RetinaNet', 'FCOS',
     'EncoderDecoder',
-
 ]
