@@ -9,12 +9,7 @@ model = dict(
         out_indices=(0, 1, 2, 3),
         frozen_stages=1,
         style='pytorch'),
-    # neck=None,
-    neck=dict(
-        type='FPN',
-        in_channels=[256, 512, 1024, 2048],
-        out_channels=256,
-        num_outs=5),
+    neck=None,
     rpn_head=dict(
         type='RPNHead',
         in_channels=256,
@@ -104,8 +99,8 @@ data_root = '/data/home/v-lixxue/coco17/'
 img_norm_cfg = dict(
     mean=[123.675, 116.28, 103.53], std=[58.395, 57.12, 57.375], to_rgb=True)
 data = dict(
-    imgs_per_gpu=2,
-    workers_per_gpu=2,
+    imgs_per_gpu=32,
+    workers_per_gpu=32,
 
 
     train=dict(
