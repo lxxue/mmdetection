@@ -118,6 +118,8 @@ class EncoderDecoder(BaseDetector, RPNTestMixin, BBoxTestMixin,
         # print(img.data)
         # print(img.data.shape)
         x = self.extract_feat(img)
+        print(self.neck)
+        exit(0)
 
         losses = dict()
 

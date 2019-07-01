@@ -17,7 +17,6 @@ from .mask_scoring_rcnn import MaskScoringRCNN
 __all__ = [
     'BaseDetector', 'SingleStageDetector', 'TwoStageDetector', 'RPN',
     'FastRCNN', 'FasterRCNN', 'MaskRCNN', 'CascadeRCNN', 'HybridTaskCascade',
-    'RetinaNet', 'FCOS', 'GridRCNN', 'MaskScoringRCNN'
-    'RetinaNet', 'FCOS',
+    'RetinaNet', 'FCOS', 'GridRCNN', 'MaskScoringRCNN',
     'EncoderDecoder',
 ]

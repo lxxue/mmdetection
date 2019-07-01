@@ -14,6 +14,6 @@ __all__ = [
     'CustomDataset', 'XMLDataset', 'CocoDataset', 'VOCDataset', 'GroupSampler',
     'DistributedGroupSampler', 'build_dataloader', 'to_tensor', 'random_scale',
     'show_ann', 'get_dataset', 'ConcatDataset', 'RepeatDataset',
-    'ExtraAugmentation', 'WIDERFaceDataset'
+    'ExtraAugmentation', 'WIDERFaceDataset',
     'MyCocoDataset'
 ]
