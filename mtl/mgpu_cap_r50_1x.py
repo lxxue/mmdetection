@@ -1,5 +1,6 @@
 # model settings
 model = dict(
+    type='CapModel',
     seg_cfg = dict(
             ignore_label=255,
             inplanes=2048,
@@ -7,21 +8,24 @@ model = dict(
             atrous_rates=[6, 12, 18, 24],
     ),
     cap_cfg = dict(
-        encoder_dim=256,
-        embed_dim=256,  # dimension of word embeddings,
-        attention_dim=256,  # dimension of attention linear layers,
-        decoder_dim=256,  # dimension of decoder RNN,
-        vocab_size=9490 # len(word_map)
+        encoder_dim=2048,
+        embed_dim=512,  # dimension of word embeddings,
+        attention_dim=512,  # dimension of attention linear layers,
+        decoder_dim=512,  # dimension of decoder RNN,
+        dropout=0.5,
+        vocab_size=9490, # len(word_map)
+        feats_size=14,
+        alpha_c=1.,
     ),
-    type='SegModel',
     pretrained='modelzoo://resnet50',
     backbone=dict(
         type='ResNet',
         depth=50,
         num_stages=4,
         out_indices=(0, 1, 2, 3),
-        frozen_stages=1,
-        style='pytorch'),
+        frozen_stages=3,
+        style='pytorch',
+        ),
     neck=None,
     rpn_head=dict(
         type='RPNHead',
@@ -112,8 +116,8 @@ data_root = '/data/home/v-lixxue/coco17/'
 img_norm_cfg = dict(
     mean=[123.675, 116.28, 103.53], std=[58.395, 57.12, 57.375], to_rgb=True)
 data = dict(
-    imgs_per_gpu=5,
-    workers_per_gpu=5,
+    imgs_per_gpu=16,
+    workers_per_gpu=4,
 
     train=dict(
         type=dataset_type,
@@ -163,7 +167,7 @@ data = dict(
         with_label=False,
         test_mode=True))
 # optimizer
-optimizer = dict(type='SGD', lr=2.5e-4, momentum=0.9, weight_decay=5.0e-4)
+optimizer = dict(type='Adam', lr=4e-4)
 optimizer_config = dict(grad_clip=dict(max_norm=35, norm_type=2))
 # learning policy
 lr_config = dict(
@@ -183,9 +187,9 @@ log_config = dict(
 # yapf:enable
 # runtime settings
 total_epochs = 12
-dist_params = dict(backend='nccl')
+dist_params = dict(backend='none')
 log_level = 'INFO'
-work_dir = './work_dirs/faster_rcnn_r50_fpn_1x'
+work_dir = './work_dirs/cap_multi_gpu'
 load_from = None
 resume_from = None
 workflow = [('train', 1)]

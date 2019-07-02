@@ -10,10 +10,10 @@ from mmdet.models import builder
 from mmdet.models.registry import DETECTORS
 from mmdet.core import bbox2roi, bbox2result, build_assigner, build_sampler
 
-from .seg_decoder import DeeplabDecoder
+from .cap_decoder import CapDecoder
 
 @DETECTORS.register_module
-class SegModel(BaseDetector, RPNTestMixin, BBoxTestMixin,
+class CapModel(BaseDetector, RPNTestMixin, BBoxTestMixin,
                        MaskTestMixin):
 
     def __init__(self,
@@ -31,34 +31,34 @@ class SegModel(BaseDetector, RPNTestMixin, BBoxTestMixin,
                  seg_cfg=None,
                  cap_cfg=None,
                  ):
-        super(SegModel, self).__init__()
+        super(CapModel, self).__init__()
         self.backbone = builder.build_backbone(backbone)
 
-        if neck is not None:
-            self.neck = builder.build_neck(neck)
+        # if neck is not None:
+        #     self.neck = builder.build_neck(neck)
 
-        if shared_head is not None:
-            self.shared_head = builder.build_shared_head(shared_head)
+        # if shared_head is not None:
+        #     self.shared_head = builder.build_shared_head(shared_head)
 
-        if rpn_head is not None:
-            self.rpn_head = builder.build_head(rpn_head)
+        # if rpn_head is not None:
+        #     self.rpn_head = builder.build_head(rpn_head)
 
-        if bbox_head is not None:
-            self.bbox_roi_extractor = builder.build_roi_extractor(
-                bbox_roi_extractor)
-            self.bbox_head = builder.build_head(bbox_head)
+        # if bbox_head is not None:
+        #     self.bbox_roi_extractor = builder.build_roi_extractor(
+        #         bbox_roi_extractor)
+        #     self.bbox_head = builder.build_head(bbox_head)
 
-        if mask_head is not None:
-            if mask_roi_extractor is not None:
-                self.mask_roi_extractor = builder.build_roi_extractor(
-                    mask_roi_extractor)
-                self.share_roi_extractor = False
-            else:
-                self.share_roi_extractor = True
-                self.mask_roi_extractor = self.bbox_roi_extractor
-            self.mask_head = builder.build_head(mask_head)
+        # if mask_head is not None:
+        #     if mask_roi_extractor is not None:
+        #         self.mask_roi_extractor = builder.build_roi_extractor(
+        #             mask_roi_extractor)
+        #         self.share_roi_extractor = False
+        #     else:
+        #         self.share_roi_extractor = True
+        #         self.mask_roi_extractor = self.bbox_roi_extractor
+        #     self.mask_head = builder.build_head(mask_head)
 
-        self.seg_decoder = DeeplabDecoder(**seg_cfg)
+        self.cap_decoder = CapDecoder(**cap_cfg)
 
         self.train_cfg = train_cfg
         self.test_cfg = test_cfg
@@ -70,27 +70,27 @@ class SegModel(BaseDetector, RPNTestMixin, BBoxTestMixin,
         return hasattr(self, 'rpn_head') and self.rpn_head is not None
 
     def init_weights(self, pretrained=None):
-        super(SegModel, self).init_weights(pretrained)
+        super(CapModel, self).init_weights(pretrained)
         self.backbone.init_weights(pretrained=pretrained)
-        if self.with_neck:
-            if isinstance(self.neck, nn.Sequential):
-                for m in self.neck:
-                    m.init_weights()
-            else:
-                self.neck.init_weights()
-        if self.with_shared_head:
-            self.shared_head.init_weights(pretrained=pretrained)
-        if self.with_rpn:
-            self.rpn_head.init_weights()
-        if self.with_bbox:
-            self.bbox_roi_extractor.init_weights()
-            self.bbox_head.init_weights()
-        if self.with_mask:
-            self.mask_head.init_weights()
-            if not self.share_roi_extractor:
-                self.mask_roi_extractor.init_weights()
-        # self.cap_decoder.init_weights()
-        self.seg_decoder.init_weights()
+        # if self.with_neck:
+        #     if isinstance(self.neck, nn.Sequential):
+        #         for m in self.neck:
+        #             m.init_weights()
+        #     else:
+        #         self.neck.init_weights()
+        # if self.with_shared_head:
+        #     self.shared_head.init_weights(pretrained=pretrained)
+        # if self.with_rpn:
+        #     self.rpn_head.init_weights()
+        # if self.with_bbox:
+        #     self.bbox_roi_extractor.init_weights()
+        #     self.bbox_head.init_weights()
+        # if self.with_mask:
+        #     self.mask_head.init_weights()
+        #     if not self.share_roi_extractor:
+        #         self.mask_roi_extractor.init_weights()
+        self.cap_decoder.init_weights()
+        # self.seg_decoder.init_weights()
 
     def extract_feat(self, img):
         x = self.backbone(img)
@@ -119,22 +119,10 @@ class SegModel(BaseDetector, RPNTestMixin, BBoxTestMixin,
 
         losses = dict()
 
-        pred_segs = self.seg_decoder(x)
-        # print(pred_segs)
-        # print(gt_seg)
-        # print(pred_segs.shape)
-        # print(torch.squeeze(gt_seg, dim=1).shape)
-        # _, _, H, W = pred_segs.shape
-        # gt_seg = resize_label(gt_seg, (H,W))
-        loss_seg = self.seg_decoder.loss(pred_segs, torch.squeeze(gt_seg, dim=1))
-        # print(type(loss_seg))
-        # print(loss_seg)
-        losses.update(loss_seg)
-
         # cap head forward and loss
-        # predictions, caps_sorted, decode_lengths, alphas, sort_ind = self.cap_decoder(x[3], gt_caps, gt_caplens)
-        # loss_cap = self.cap_decoder.loss(predictions, caps_sorted, decode_lengths, alphas)
-        # losses.update(loss_cap)
+        predictions, caps_sorted, decode_lengths, alphas, sort_ind = self.cap_decoder(x[3], gt_caps, gt_caplens)
+        loss_cap = self.cap_decoder.loss(predictions, caps_sorted, decode_lengths, alphas)
+        losses.update(loss_cap)
 
         return losses
 

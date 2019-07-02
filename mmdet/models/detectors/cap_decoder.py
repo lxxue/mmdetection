@@ -161,7 +161,7 @@ class CapDecoder(nn.Module):
 
 
 
-        losses['loss_cap'] = 0.001 * self.loss_cap(scores.data, targets.data) + self.alpha_c * ((1. - alphas.sum(dim=1)) ** 2).mean()
+        losses['loss_cap'] = self.loss_cap(scores.data, targets.data) + self.alpha_c * ((1. - alphas.sum(dim=1)) ** 2).mean()
         return losses
 
 
