@@ -7,7 +7,7 @@ from mmdet.models import builder
 from mmdet.models.registry import DETECTORS
 from mmdet.core import bbox2roi, bbox2result, build_assigner, build_sampler
 
-from .seg_decoder import SegDecoder
+from .seg_decoder import DeeplabDecoder
 from .cap_decoder import CapDecoder
 
 @DETECTORS.register_module
@@ -26,6 +26,8 @@ class EncoderDecoder(BaseDetector, RPNTestMixin, BBoxTestMixin,
                  train_cfg=None,
                  test_cfg=None,
                  pretrained=None,
+                 seg_cfg=None,
+                 cap_cfg=None,
                  ):
         super(EncoderDecoder, self).__init__()
         self.backbone = builder.build_backbone(backbone)
@@ -54,15 +56,7 @@ class EncoderDecoder(BaseDetector, RPNTestMixin, BBoxTestMixin,
                 self.mask_roi_extractor = self.bbox_roi_extractor
             self.mask_head = builder.build_head(mask_head)
 
-        seg_cfg = dict(ignore_label=255)
-        cap_cfg = dict(
-            encoder_dim=256,
-            embed_dim=256,  # dimension of word embeddings,
-            attention_dim=256,  # dimension of attention linear layers,
-            decoder_dim=256,  # dimension of decoder RNN,
-            vocab_size=9490,  # len(word_map)
-        )
-        self.seg_decoder = SegDecoder(**seg_cfg)
+        self.seg_decoder = DeeplabDecoder(**seg_cfg)
         self.cap_decoder = CapDecoder(**cap_cfg)
 
         self.train_cfg = train_cfg
@@ -114,15 +108,7 @@ class EncoderDecoder(BaseDetector, RPNTestMixin, BBoxTestMixin,
                       gt_seg=None,
                       gt_caps=None,
                       gt_caplens=None):
-        # print(img)
-        # print(img.data)
-        # print(img.data.shape)
         x = self.extract_feat(img)
-        #for x_ in x:
-        #    print(x_.size())
-        #exit(0)
-        # print(self.neck)
-        # exit(0)
 
         losses = dict()
 
@@ -214,23 +200,14 @@ class EncoderDecoder(BaseDetector, RPNTestMixin, BBoxTestMixin,
                                             pos_labels)
             losses.update(loss_mask)
 
-        # seg head forward and loss
-        # print(img.size())
-        # print(x[0].size())
         pred_segs = self.seg_decoder(x)
-        # print(pred_segs)
-        # print(gt_seg)
-        # print(pred_segs.shape)
-        # print(torch.squeeze(gt_seg, dim=1).shape)
-        loss_seg = self.seg_decoder.loss(pred_segs, torch.squeeze(gt_seg, dim=1))
-        # print(type(loss_seg))
-        # print(loss_seg)
+        loss_seg = self.seg_decoder.loss(pred_segs, torch.squeeze(gt_seg, dim=1), weight=2.5e-2)
         losses.update(loss_seg)
 
         # cap head forward and loss
-        # predictions, caps_sorted, decode_lengths, alphas, sort_ind = self.cap_decoder(x[3], gt_caps, gt_caplens)
-        # loss_cap = self.cap_decoder.loss(predictions, caps_sorted, decode_lengths, alphas)
-        # losses.update(loss_cap)
+        predictions, caps_sorted, decode_lengths, alphas, sort_ind = self.cap_decoder(x[-1], gt_caps, gt_caplens)
+        loss_cap = self.cap_decoder.loss(predictions, caps_sorted, decode_lengths, alphas, weight=4e-2)
+        losses.update(loss_cap)
 
         return losses
 
