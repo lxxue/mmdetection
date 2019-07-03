@@ -120,7 +120,7 @@ class CapModel(BaseDetector, RPNTestMixin, BBoxTestMixin,
         losses = dict()
 
         # cap head forward and loss
-        predictions, caps_sorted, decode_lengths, alphas, sort_ind = self.cap_decoder(x[3], gt_caps, gt_caplens)
+        predictions, caps_sorted, decode_lengths, alphas, sort_ind = self.cap_decoder(x[-1], gt_caps, gt_caplens)
         loss_cap = self.cap_decoder.loss(predictions, caps_sorted, decode_lengths, alphas)
         losses.update(loss_cap)
 

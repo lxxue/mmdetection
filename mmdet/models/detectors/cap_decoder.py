@@ -145,7 +145,7 @@ class CapDecoder(nn.Module):
 
         return predictions, encoded_captions, decode_lengths, alphas, sort_ind
 
-    def loss(self, scores, caps_sorted, decode_lengths, alphas):
+    def loss(self, scores, caps_sorted, decode_lengths, alphas, weight=1.0):
         losses = {}
         # Since we decoded starting with <start>, the targets are all words after <start>, up to <end>
         # decode_lengths = decode_lengths.tolist()
@@ -161,7 +161,7 @@ class CapDecoder(nn.Module):
 
 
 
-        losses['loss_cap'] = self.loss_cap(scores.data, targets.data) + self.alpha_c * ((1. - alphas.sum(dim=1)) ** 2).mean()
+        losses['loss_cap'] = weight * (self.loss_cap(scores.data, targets.data) + self.alpha_c * ((1. - alphas.sum(dim=1)) ** 2).mean())
         return losses
 
 
