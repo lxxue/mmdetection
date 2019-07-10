@@ -187,7 +187,7 @@ log_config = dict(
 # yapf:enable
 # runtime settings
 total_epochs = 12
-dist_params = dict(backend='none')
+dist_params = dict(backend='nccl')
 log_level = 'INFO'
 work_dir = './work_dirs/cap_multi_gpu'
 load_from = None

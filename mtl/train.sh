@@ -1,7 +1,6 @@
-CUDA_VISIBLE_DEVICES=0 \
+CUDA_VISIBLE_DEVICES=5,6,7 \
     python train.py \
-    mtl_r50_1x.py \
-    --work_dir ./ \
+    mtl_r50_caffe_c4_1x.py \
     --validate \
-    --gpus 1 \
+    --gpus 3 \
     --seed 123

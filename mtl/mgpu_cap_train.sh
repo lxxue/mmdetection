@@ -1,6 +1,6 @@
-CUDA_VISIBLE_DEVICES=6,7 \
+CUDA_VISIBLE_DEVICES=4,5,6,7 \
     python train.py \
     mgpu_cap_r50_1x.py \
-    --validate \
-    --gpus 2 \
-    --seed 123
+    --gpus 4 \
+    --seed 123 \
+    --launcher pytorch
