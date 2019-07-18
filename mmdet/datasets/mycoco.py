@@ -15,8 +15,9 @@ from mmdet.datasets.transforms import (ImageTransform, BboxTransform, MaskTransf
                                        SegMapTransform, Numpy2Tensor)
 from mmdet.datasets.utils import to_tensor, random_scale
 from mmdet.datasets.extra_aug import ExtraAugmentation
+from .registry import DATASETS
 
-
+@DATASETS.register_module
 class MyCocoDataset(CocoDataset):
     CLASSES = ('person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus',
                'train', 'truck', 'boat', 'traffic_light', 'fire_hydrant',
@@ -144,7 +145,7 @@ class MyCocoDataset(CocoDataset):
 
             self.enc_captions = torch.LongTensor(enc_captions)
             self.caplens = torch.LongTensor(np.array(caplens).astype(np.long))
-            print(self.caplens[0])
+            # print(self.caplens[0])
 
             with open(captions_fname, 'w') as f:
                 json.dump(enc_captions, f)

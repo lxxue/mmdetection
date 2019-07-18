@@ -6,10 +6,11 @@ from mmdet.models.builder import build_loss
 
 
 class DeeplabDecoder(nn.Module):
-    def __init__(self, ignore_label, inplanes, num_classes, atrous_rates):
+    def __init__(self, ignore_label, inplanes, num_classes, atrous_rates, weight=1.0):
         super(DeeplabDecoder, self).__init__()
         self.aspp = _ASPP(inplanes, num_classes, atrous_rates)
         self.loss_seg = torch.nn.CrossEntropyLoss(ignore_index=ignore_label)
+        self.weight = weight
 
 
     def forward(self, feats):

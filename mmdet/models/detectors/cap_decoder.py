@@ -14,7 +14,7 @@ class CapDecoder(nn.Module):
     Decoder.
     """
 
-    def __init__(self, attention_dim, embed_dim, decoder_dim, vocab_size, encoder_dim, dropout=0.5, feats_size=13, alpha_c=1):
+    def __init__(self, attention_dim, embed_dim, decoder_dim, vocab_size, encoder_dim, dropout=0.5, feats_size=13, alpha_c=1, weight=1.0):
         """
         :param attention_dim: size of attention network
         :param embed_dim: embedding size
@@ -24,6 +24,7 @@ class CapDecoder(nn.Module):
         :param dropout: dropout
         # lixin
         :param feats_size: size of encoded images
+        :param weight: weight of loss compared to base lr (for multitask learning)
         """
         super(CapDecoder, self).__init__()
 
@@ -50,6 +51,7 @@ class CapDecoder(nn.Module):
         self.feats_size = feats_size
         self.loss_cap = nn.CrossEntropyLoss()
         self.alpha_c = alpha_c
+        self.weight = weight
 
     def init_weights(self):
         """

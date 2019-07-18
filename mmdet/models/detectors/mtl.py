@@ -56,8 +56,10 @@ class EncoderDecoder(BaseDetector, RPNTestMixin, BBoxTestMixin,
                 self.mask_roi_extractor = self.bbox_roi_extractor
             self.mask_head = builder.build_head(mask_head)
 
-        self.seg_decoder = DeeplabDecoder(**seg_cfg)
-        self.cap_decoder = CapDecoder(**cap_cfg)
+        if seg_cfg is not None:
+            self.seg_decoder = DeeplabDecoder(**seg_cfg)
+        if cap_cfg is not None:
+            self.cap_decoder = CapDecoder(**cap_cfg)
 
         self.train_cfg = train_cfg
         self.test_cfg = test_cfg
@@ -67,6 +69,14 @@ class EncoderDecoder(BaseDetector, RPNTestMixin, BBoxTestMixin,
     @property
     def with_rpn(self):
         return hasattr(self, 'rpn_head') and self.rpn_head is not None
+    
+    @property
+    def with_seg(self):
+        return hasattr(self, 'seg_decoder') and self.seg_decoder is not None
+
+    @property
+    def with_cap(self):
+        return hasattr(self, 'cap_decoder') and self.cap_decoder is not None
 
     def init_weights(self, pretrained=None):
         super(EncoderDecoder, self).init_weights(pretrained)
@@ -88,12 +98,19 @@ class EncoderDecoder(BaseDetector, RPNTestMixin, BBoxTestMixin,
             self.mask_head.init_weights()
             if not self.share_roi_extractor:
                 self.mask_roi_extractor.init_weights()
-        self.cap_decoder.init_weights()
-        self.seg_decoder.init_weights()
+        if self.with_seg:
+            self.seg_decoder.init_weights()
+        if self.with_cap:
+            self.cap_decoder.init_weights()
 
     def extract_feat(self, img):
+        # print(img[0].shape)
+        # print(img[0][0])
         x = self.backbone(img)
+        # print(x[0].shape)
+        # print(x[0][0])
         if self.with_neck:
+            # assert False, "shouldn't go inside"
             x = self.neck(x)
         return x
 
@@ -201,14 +218,16 @@ class EncoderDecoder(BaseDetector, RPNTestMixin, BBoxTestMixin,
             losses.update(loss_mask)
 
         # seg head forward and loss
-        pred_segs = self.seg_decoder(x)
-        loss_seg = self.seg_decoder.loss(pred_segs, torch.squeeze(gt_seg, dim=1), weight=2.5e-2)
-        losses.update(loss_seg)
+        if self.with_seg:
+            pred_segs = self.seg_decoder(x)
+            loss_seg = self.seg_decoder.loss(pred_segs, torch.squeeze(gt_seg, dim=1), weight=self.seg_decoder.weight)
+            losses.update(loss_seg)
 
         # cap head forward and loss
-        predictions, caps_sorted, decode_lengths, alphas, sort_ind = self.cap_decoder(x[-1], gt_caps, gt_caplens)
-        loss_cap = self.cap_decoder.loss(predictions, caps_sorted, decode_lengths, alphas, weight=4e-2)
-        losses.update(loss_cap)
+        if self.with_cap:
+            predictions, caps_sorted, decode_lengths, alphas, sort_ind = self.cap_decoder(x[-1], gt_caps, gt_caplens)
+            loss_cap = self.cap_decoder.loss(predictions, caps_sorted, decode_lengths, alphas, weight=self.cap_decoder.weight)
+            losses.update(loss_cap)
 
         return losses
 
