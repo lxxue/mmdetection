@@ -336,14 +336,14 @@ def resize_label(label, size_divisor):
 
 if __name__ == "__main__":
     img_norm_cfg = dict(mean=[123.675, 116.28, 103.53], std=[58.395, 57.12, 57.375], to_rgb=True)
-    data_root = "/data/home/v-lixxue/coco17/"
+    data_root = "/mnt/coco17/"
     ann_file = data_root + 'annotations/instances_train2017.json'
     img_prefix = data_root + 'train2017/'
     img_scale = (1333, 800)
     dset = MyCocoDataset(with_cap=True,
                          split='TRAIN',
-                         cap_f='/data/home/v-lixxue/coco17/annotations/caps_coco17.json',
-                         cap_dir='/data/home/v-lixxue/coco17/annotations/',
+                         cap_f=data_root+'annotations/caps_coco17.json',
+                         cap_dir=data_root+'annotations/',
                          ann_file=ann_file,
                          img_prefix=img_prefix,
                          img_scale=img_scale,
@@ -357,7 +357,7 @@ if __name__ == "__main__":
                          with_crowd=True,
                          with_label=True,
                          with_semantic_seg=True,
-                         seg_prefix="/data/home/v-lixxue/coco17/annotations/train2017",
+                         seg_prefix=data_root+"annotations/train2017",
                          seg_scale_factor=1,
                          extra_aug=None,
                          resize_keep_ratio=True,
