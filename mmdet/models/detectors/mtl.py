@@ -231,26 +231,82 @@ class EncoderDecoder(BaseDetector, RPNTestMixin, BBoxTestMixin,
 
         return losses
 
-    def simple_test(self, img, img_meta, proposals=None, rescale=False):
+    # lixin
+    def simple_test(self, img, img_meta, proposals=None, rescale=False,
+            gt_seg=None, gt_caps=None, gt_caplens=None, allcaps=None):
         """Test without augmentation."""
-        assert self.with_bbox, "Bbox head must be implemented."
+        # assert self.with_bbox, "Bbox head must be implemented."
 
         x = self.extract_feat(img)
 
-        proposal_list = self.simple_test_rpn(
-            x, img_meta, self.test_cfg.rpn) if proposals is None else proposals
+        result = {}
+        
+        if self.with_bbox:
+            proposal_list = self.simple_test_rpn(
+                x, img_meta, self.test_cfg.rpn) if proposals is None else proposals
 
-        det_bboxes, det_labels = self.simple_test_bboxes(
-            x, img_meta, proposal_list, self.test_cfg.rcnn, rescale=rescale)
-        bbox_results = bbox2result(det_bboxes, det_labels,
-                                   self.bbox_head.num_classes)
+            det_bboxes, det_labels = self.simple_test_bboxes(
+                x, img_meta, proposal_list, self.test_cfg.rcnn, rescale=rescale)
+            bbox_results = bbox2result(det_bboxes, det_labels,
+                                       self.bbox_head.num_classes)
 
-        if not self.with_mask:
-            return bbox_results
-        else:
-            segm_results = self.simple_test_mask(
-                x, img_meta, det_bboxes, det_labels, rescale=rescale)
-            return bbox_results, segm_results
+            if not self.with_mask:
+                result['det'] = bbox_results
+                # return bbox_results
+            else:
+                segm_results = self.simple_test_mask(
+                    x, img_meta, det_bboxes, det_labels, rescale=rescale)
+                result['det'] = (bbox_results, segm_results)
+                # return bbox_results, segm_results
+
+        if self.with_seg:
+            logits = self.seg_decoder(x)
+            _, H, W = gt_labels.shape
+            logits = F.interpolate(logits, size=(H,W), mode='bilinear', align_corners=False)
+            probs = F.softmax(logits, dim=1)
+            preds = torch.argmax(probs, dim=1)
+            result['seg'] = {'pred':preds, 'gt_seg':gt_seg}
+
+
+        if self.with_cap:
+            predictions, caps_sorted, decode_lengths, alphas, sort_ind = self.cap_decoder(x[-1], gt_caps, gt_caplens)
+            # Since we decoded starting with <start>, the targets are all words after <start>, up to <end>
+            targets = caps_sorted[:, 1:]
+
+            # Remove timesteps that we didn't decode at, or are pads
+            # pack_padded_sequence is an easy trick to do this
+            scores_copy = scores.clone()
+            scores, _ = pack_padded_sequence(scores, decode_lengths, batch_first=True)
+            targets, _ = pack_padded_sequence(targets, decode_lengths, batch_first=True)
+
+            # References
+            references = list()
+            hypotheses = list()
+            allcaps = allcaps[sort_ind]  # because images were sorted in the decoder
+            for j in range(allcaps.shape[0]):
+                img_caps = allcaps[j].tolist()
+                img_captions = list(
+                    map(lambda c: [w for w in c if w not in {word_map['<start>'], word_map['<pad>']}],
+                        img_caps))  # remove <start> and pads
+                references.append(img_captions)
+
+            # Hypotheses
+            _, preds = torch.max(scores_copy, dim=2)
+            preds = preds.tolist()
+            temp_preds = list()
+            for j, p in enumerate(preds):
+                temp_preds.append(preds[j][:decode_lengths[j]])  # remove pads
+            preds = temp_preds
+            hypotheses.extend(preds)
+            result['cap'] = {
+                'score':scores,
+                'target':targets,
+                'hypothesis':hypotheses,
+                'reference':references
+            }
+
+
+        return result
 
     def aug_test(self, imgs, img_metas, rescale=False):
         """Test with augmentations.

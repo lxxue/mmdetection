@@ -14,6 +14,7 @@ from .coco_utils import results2json, fast_eval_recall
 from .mean_ap import eval_map
 from mmdet import datasets
 
+from nltk.translate.bleu_score import corpus_bleu
 
 class DistEvalHook(Hook):
 
@@ -163,3 +164,95 @@ class CocoDistEvalmAPHook(DistEvalHook):
         runner.log_buffer.ready = True
         for res_type in res_types:
             os.remove(result_files[res_type])
+
+
+class MyDistEvalHook(DistEvalHook):
+
+    def evaluate(self, runner, results):
+        with_det = True if 'det' in results[0] else False
+        with_seg = True if 'seg' in results[0] else False
+        with_cap = True if 'cap' in results[0] else False
+        if with_det:
+            det_results = [result['det'] for result in results]
+            tmp_file = osp.join(runner.work_dir, 'temp_0')
+            result_files = results2json(self.dataset, det_results, tmp_file)
+
+            res_types = ['bbox', 'segm'
+                         ] if runner.model.module.with_mask else ['bbox']
+            cocoGt = self.dataset.coco
+            imgIds = sorted(cocoGt.getImgIds())
+            for res_type in res_types:
+                cocoDt = cocoGt.loadRes(result_files[res_type])
+                iou_type = res_type
+                cocoEval = COCOeval(cocoGt, cocoDt, iou_type)
+                cocoEval.params.imgIds = imgIds
+                cocoEval.evaluate()
+                cocoEval.accumulate()
+                cocoEval.summarize()
+                metrics = ['mAP', 'mAP_50', 'mAP_75', 'mAP_s', 'mAP_m', 'mAP_l']
+                for i in range(len(metrics)):
+                    key = '{}_{}'.format(res_type, metrics[i])
+                    val = float('{:.3f}'.format(cocoEval.stats[i]))
+                    runner.log_buffer.output[key] = val
+                runner.log_buffer.output['{}_mAP_copypaste'.format(res_type)] = (
+                    '{ap[0]:.3f} {ap[1]:.3f} {ap[2]:.3f} {ap[3]:.3f} '
+                    '{ap[4]:.3f} {ap[5]:.3f}').format(ap=cocoEval.stats[:6])
+            for res_type in res_types:
+                os.remove(result_files[res_type])
+
+        # seg
+        if with_seg:
+            preds = torch.stack([result['seg']['pred'] for result in results])
+            gt_segs = torch.stack([result['seg']['gt_seg'] for result in results])
+            n_class = 182
+            seg_scores = scores(gt_segs, preds, n_class)
+            runner.log_buffer.output.update(seg_scores)
+
+        # cap
+        if with_cap:
+            scores = torch.stack([result['cap']['score'] for result in results])
+            targets = torch.stack([result['cap']['target'] for result in results])
+            dsize = targets.size(0)
+            _, ind = scores.topk(k=5, dim=1, largest=True, sorted=True)
+            correct = ind.eq(targets.view(-1, 1).expand_as(ind))
+            correct_total = correct.view(-1).float().sum()  # 0D tensor
+            cap_top5_acc = correct_total.item() * (100.0 / batch_size)
+            runner.log_buffer.output['cap top5 acc'] = ('{:.3f}'.formate(cap_top5_acc))
+            references = [result['cap']['reference'] for result in results]
+            hypotheses = [result['cap']['hypothesis'] for result in results]
+            bleu4 = corpus_bleu(references, hypotheses)
+            runner.log_buffer.output['bleu4 score'] = ('{:.3f}'.formate(bleu4))
+
+        runner.log_buffer.ready = True
+
+
+def _fast_hist(label_true, label_pred, n_class):
+    mask = (label_true >= 0) & (label_true < n_class)
+    hist = np.bincount(
+        n_class * label_true[mask].astype(int) + label_pred[mask],
+        minlength=n_class ** 2,
+    ).reshape(n_class, n_class)
+    return hist
+
+
+def scores(label_trues, label_preds, n_class):
+    hist = np.zeros((n_class, n_class))
+    for lt, lp in zip(label_trues, label_preds):
+        hist += _fast_hist(lt.flatten(), lp.flatten(), n_class)
+    acc = np.diag(hist).sum() / hist.sum()
+    acc_cls = np.diag(hist) / hist.sum(axis=1)
+    acc_cls = np.nanmean(acc_cls)
+    iu = np.diag(hist) / (hist.sum(axis=1) + hist.sum(axis=0) - np.diag(hist))
+    valid = hist.sum(axis=1) > 0  # added
+    mean_iu = np.nanmean(iu[valid])
+    freq = hist.sum(axis=1) / hist.sum()
+    fwavacc = (freq[freq > 0] * iu[freq > 0]).sum()
+    cls_iu = dict(zip(range(n_class), iu))
+
+    return {
+        "Pixel Accuracy": acc,
+        "Mean Accuracy": acc_cls,
+        "Frequency Weighted IoU": fwavacc,
+        "Mean IoU": mean_iu,
+        "Class IoU": cls_iu,
+    }

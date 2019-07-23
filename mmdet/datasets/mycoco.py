@@ -326,6 +326,25 @@ class MyCocoDataset(CocoDataset):
         # if self.with_cap is not None:
         #     data['gt_caps'] = self.enc_captions[idx*self.cpi:(idx+1)*self.cpi]
         #     data['gt_caplens'] = self.caplens[idx*self.cpi:(idx+1)*self.cpi]
+        if self.with_seg:
+            gt_seg = mmcv.imread(
+                osp.join(self.seg_prefix, img_info['file_name'].replace(
+                    'jpg', 'png')),
+                flag='unchanged')
+            gt_seg = self.seg_transform(gt_seg.squeeze(), img_scale, flip)
+            # gt_seg = mmcv.imrescale(
+            #     gt_seg, self.seg_scale_factor, interpolation='nearest')
+            gt_seg = resize_label(gt_seg, self.size_divisor) 
+            gt_seg = gt_seg[None, ...]
+            data['gt_seg'] = DC(to_tensor(gt_seg.astype(np.long)), stack=True)
+
+        if self.with_cap:
+            rnd_idx = idx * self.cpi + np.random.randint(self.cpi)
+            # data['gt_caps'] = DC(to_tensor(self.enc_captions[rnd_idx]))
+            data['gt_caps'] = to_tensor(self.enc_captions[rnd_idx])
+            # data['gt_caplens'] = DC(to_tensor(self.caplens[rnd_idx]))
+            data['gt_caplens'] = to_tensor(np.array(self.caplens[rnd_idx]))
+            data['allcaps'] = to_tensor(self.enc_captions[idx*self.cpi:(idx+1)*self.api])
         return data
 
 def resize_label(label, size_divisor):
