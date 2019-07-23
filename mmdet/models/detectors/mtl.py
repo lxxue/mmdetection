@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 from mmdet.models.detectors.base import BaseDetector
 from mmdet.models.detectors.test_mixins import RPNTestMixin, BBoxTestMixin, MaskTestMixin
@@ -261,11 +262,15 @@ class EncoderDecoder(BaseDetector, RPNTestMixin, BBoxTestMixin,
 
         if self.with_seg:
             logits = self.seg_decoder(x)
-            _, H, W = gt_labels.shape
+            # print(gt_seg.shape)
+            _, _, H, W = gt_seg.shape
             logits = F.interpolate(logits, size=(H,W), mode='bilinear', align_corners=False)
             probs = F.softmax(logits, dim=1)
             preds = torch.argmax(probs, dim=1)
-            result['seg'] = {'pred':preds, 'gt_seg':gt_seg}
+            result['seg'] = {
+                    'pred':preds.detach().cpu().numpy(),
+                    'gt_seg':gt_seg.detach().cpu().numpy()
+            }
 
 
         if self.with_cap:
@@ -299,8 +304,8 @@ class EncoderDecoder(BaseDetector, RPNTestMixin, BBoxTestMixin,
             preds = temp_preds
             hypotheses.extend(preds)
             result['cap'] = {
-                'score':scores,
-                'target':targets,
+                'score':scores.detach().cpu().numpy(),
+                'target':targets.detach().cpu().numpy(),
                 'hypothesis':hypotheses,
                 'reference':references
             }

@@ -117,11 +117,11 @@ test_cfg = dict(
         score_thr=0.05, nms=dict(type='nms', iou_thr=0.5), max_per_img=100))
 # dataset settings
 dataset_type = 'MyCocoDataset'
-data_root = '/mnt/coco17/'
+data_root = '/data/home/v-yinghx/lixin/coco17/'
 img_norm_cfg = dict(
     mean=[102.9801, 115.9465, 122.7717], std=[1.0, 1.0, 1.0], to_rgb=False)
 data = dict(
-    imgs_per_gpu=10,
+    imgs_per_gpu=1,
     workers_per_gpu=2,
     train=dict(
         type=dataset_type,
@@ -154,10 +154,10 @@ data = dict(
         with_label=True,
         with_semantic_seg=True,
         with_cap=False,
-        seg_prefix=data_root+'annotations/train2017',
+        seg_prefix=data_root+'annotations/val2017',
         seg_scale_factor=1,
         cap_f=data_root+'annotations/caps_coco17.json',
-        split="TRAIN",
+        split="VAL",
         cap_dir=data_root+'annotations/caps/'),
     test=dict(
         type=dataset_type,
@@ -172,10 +172,10 @@ data = dict(
         test_mode=True,
         with_semantic_seg=True,
         with_cap=False,
-        seg_prefix=data_root+'annotations/train2017',
+        seg_prefix=data_root+'annotations/val2017',
         seg_scale_factor=1,
         cap_f=data_root+'annotations/caps_coco17.json',
-        split="TRAIN",
+        split="VAL",
         cap_dir=data_root+'annotations/caps/'))
 # optimizer
 optimizer = dict(type='SGD', lr=0.01, momentum=0.9, weight_decay=0.0001)

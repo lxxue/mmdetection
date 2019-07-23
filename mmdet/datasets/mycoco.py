@@ -331,10 +331,10 @@ class MyCocoDataset(CocoDataset):
                 osp.join(self.seg_prefix, img_info['file_name'].replace(
                     'jpg', 'png')),
                 flag='unchanged')
-            gt_seg = self.seg_transform(gt_seg.squeeze(), img_scale, flip)
+            gt_seg = self.seg_transform(gt_seg.squeeze(), self.img_scales[0], False)
             # gt_seg = mmcv.imrescale(
             #     gt_seg, self.seg_scale_factor, interpolation='nearest')
-            gt_seg = resize_label(gt_seg, self.size_divisor) 
+            # gt_seg = resize_label(gt_seg, self.size_divisor) 
             gt_seg = gt_seg[None, ...]
             data['gt_seg'] = DC(to_tensor(gt_seg.astype(np.long)), stack=True)
 
