@@ -202,8 +202,8 @@ class MyDistEvalHook(DistEvalHook):
 
         # seg
         if with_seg:
-            preds = torch.stack([result['seg']['pred'] for result in results])
-            gt_segs = torch.stack([result['seg']['gt_seg'] for result in results])
+            preds = [result['seg']['pred'] for result in results]
+            gt_segs = [np.squeeze(result['seg']['gt_seg']) for result in results]
             n_class = 182
             seg_scores = scores(gt_segs, preds, n_class)
             runner.log_buffer.output.update(seg_scores)

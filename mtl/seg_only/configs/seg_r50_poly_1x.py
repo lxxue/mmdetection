@@ -2,10 +2,10 @@
 norm_cfg = dict(type='BN', requires_grad=False)
 model = dict(
     type='EncoderDecoder',
-    pretrained='modelzoo://resnet101',
+    pretrained='modelzoo://resnet50',
     backbone=dict(
         type='ResNet',
-        depth=101,
+        depth=50,
         num_stages=4,
         out_indices=(3,),
         frozen_stages=-1,
@@ -116,7 +116,7 @@ test_cfg = dict(
         score_thr=0.05, nms=dict(type='nms', iou_thr=0.5), max_per_img=100))
 # dataset settings
 dataset_type = 'MyCocoDataset'
-data_root = '/data/home/v-yinghx/lixin/coco17/'
+data_root = '/data/home/v-lixxue/coco17/'
 img_norm_cfg = dict(
     mean=[102.9801, 115.9465, 122.7717], std=[1.0, 1.0, 1.0], to_rgb=False)
 data = dict(
@@ -192,7 +192,7 @@ log_config = dict(
 total_epochs = 12
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
-work_dir = './work_dirs/seg_r101_poly_1x'
+work_dir = './work_dirs/seg_r50_poly_1x'
 load_from = None
 resume_from = None
 workflow = [('train', 1)]
