@@ -58,7 +58,7 @@ class DeeplabDecoder(nn.Module):
             _, _, H, W = logits.shape
             # size – The requested size in pixels, as a 2-tuple: (width, height).
             labels_ = _resize_labels(gt_segs, size=(W, H))
-            losses['loss_seg'] = weight * self.loss_seg(logits, torch.squeeze(labels_, dim=1))
+            losses['loss_seg'] = weight * self.loss_seg(logits, torch.squeeze(labels_.to(logits.device), dim=1))
         # print(type(losses))
 
         # losses['loss_seg'] = weight * self.loss_seg(logits, torch.squeeze(gt_segs, dim=1))
