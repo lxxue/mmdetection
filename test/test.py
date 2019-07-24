@@ -1,6 +1,7 @@
 import argparse
 import os
 import os.path as osp
+import numpy as np
 import shutil
 import tempfile
 
@@ -24,6 +25,9 @@ def single_gpu_test(model, data_loader, show=False):
     for i, data in enumerate(data_loader):
         with torch.no_grad():
             result = model(return_loss=False, rescale=not show, **data)
+            # print(result)
+            # print(result['seg']['pred'].shape) (1, H, W)
+            # print(result['seg']['gt_seg'].shape) (1, 1, H, W)
         results.append(result)
 
         if show:
@@ -69,7 +73,7 @@ def collect_results(result_part, size, tmpdir=None):
                                 dtype=torch.uint8,
                                 device='cuda')
         if rank == 0:
-            tmpdir = tempfile.mkdtemp()
+            tmpdir = tempfile.mkdtemp(dir="/mnt/tmp/")
             tmpdir = torch.tensor(
                 bytearray(tmpdir.encode()), dtype=torch.uint8, device='cuda')
             dir_tensor[:len(tmpdir)] = tmpdir
@@ -180,27 +184,72 @@ def main():
         outputs = multi_gpu_test(model, data_loader, args.tmpdir)
 
     rank, _ = get_dist_info()
-    if args.out and rank == 0:
-        print('\nwriting results to {}'.format(args.out))
-        mmcv.dump(outputs, args.out)
-        eval_types = args.eval
-        if eval_types:
-            print('Starting evaluate {}'.format(' and '.join(eval_types)))
-            if eval_types == ['proposal_fast']:
-                result_file = args.out
-                coco_eval(result_file, eval_types, dataset.coco)
-            else:
-                if not isinstance(outputs[0], dict):
-                    result_files = results2json(dataset, outputs, args.out)
-                    coco_eval(result_files, eval_types, dataset.coco)
-                else:
-                    for name in outputs[0]:
-                        print('\nEvaluating {}'.format(name))
-                        outputs_ = [out[name] for out in outputs]
-                        result_file = args.out + '.{}'.format(name)
-                        result_files = results2json(dataset, outputs_,
-                                                    result_file)
-                        coco_eval(result_files, eval_types, dataset.coco)
+    if rank == 0:
+        if 'seg' in outputs[0]:
+            # print("123")
+            # preds = numpy.
+            preds = [result['seg']['pred'] for result in outputs]
+            gt_segs = [np.squeeze(result['seg']['gt_seg'], axis=1) for result in outputs]
+            seg_scores = scores(gt_segs, preds, n_class=182)
+            print(seg_scores)
+            mmcv.dump(seg_scores, args.out)
+
+        
+    # if args.out and rank == 0:
+        # print('\nwriting results to {}'.format(args.out))
+        # mmcv.dump(outputs, args.out)
+        # eval_types = args.eval
+        # if eval_types:
+        #     print('Starting evaluate {}'.format(' and '.join(eval_types)))
+        #     if eval_types == ['proposal_fast']:
+        #         result_file = args.out
+        #         coco_eval(result_file, eval_types, dataset.coco)
+        #     else:
+        #         if not isinstance(outputs[0], dict):
+        #             result_files = results2json(dataset, outputs, args.out)
+        #             coco_eval(result_files, eval_types, dataset.coco)
+        #         else:
+        #             for name in outputs[0]:
+        #                 print('\nEvaluating {}'.format(name))
+        #                 outputs_ = [out[name] for out in outputs]
+        #                 result_file = args.out + '.{}'.format(name)
+        #                 result_files = results2json(dataset, outputs_,
+        #                                             result_file)
+        #                 coco_eval(result_files, eval_types, dataset.coco)
+
+
+
+def _fast_hist(label_true, label_pred, n_class):
+    mask = (label_true >= 0) & (label_true < n_class)
+    hist = np.bincount(
+        n_class * label_true[mask].astype(int) + label_pred[mask],
+        minlength=n_class ** 2,
+    ).reshape(n_class, n_class)
+    return hist
+
+
+def scores(label_trues, label_preds, n_class):
+    hist = np.zeros((n_class, n_class))
+    for lt, lp in zip(label_trues, label_preds):
+        hist += _fast_hist(lt.flatten(), lp.flatten(), n_class)
+    acc = np.diag(hist).sum() / hist.sum()
+    acc_cls = np.diag(hist) / hist.sum(axis=1)
+    acc_cls = np.nanmean(acc_cls)
+    iu = np.diag(hist) / (hist.sum(axis=1) + hist.sum(axis=0) - np.diag(hist))
+    valid = hist.sum(axis=1) > 0  # added
+    mean_iu = np.nanmean(iu[valid])
+    freq = hist.sum(axis=1) / hist.sum()
+    fwavacc = (freq[freq > 0] * iu[freq > 0]).sum()
+    cls_iu = dict(zip(range(n_class), iu))
+
+    return {
+        "Pixel Accuracy": acc,
+        "Mean Accuracy": acc_cls,
+        "Frequency Weighted IoU": fwavacc,
+        "Mean IoU": mean_iu,
+        # "Class IoU": cls_iu,
+    }
+
 
 
 if __name__ == '__main__':

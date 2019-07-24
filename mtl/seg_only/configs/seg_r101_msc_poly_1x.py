@@ -2,27 +2,25 @@
 norm_cfg = dict(type='BN', requires_grad=False)
 model = dict(
     type='EncoderDecoder',
-    pretrained='open-mmlab://resnet50_caffe',
+    pretrained='modelzoo://resnet101',
     backbone=dict(
         type='ResNet',
-        depth=50,
-        num_stages=3,
-        strides=(1, 2, 2),
-        dilations=(1, 1, 1),
-        out_indices=(2, ),
-        frozen_stages=1,
+        depth=101,
+        num_stages=4,
+        out_indices=(3,),
+        frozen_stages=-1,
         norm_cfg=norm_cfg,
         norm_eval=True,
-        style='caffe'),
+        style='pytorch'),
     shared_head=None,
     rpn_head=None,
     bbox_head=None,
     seg_cfg=dict(
         ignore_label=255,
-        inplanes=1024,
+        inplanes=2048,
         num_classes=182,
         atrous_rates=[6, 12, 18, 24],
-        weight=0.025),
+        weight=1.0),
     cap_cfg=None)
     # shared_head=dict(
     #     type='ResLayer',
@@ -121,15 +119,15 @@ data_root = '/mnt/coco17/'
 img_norm_cfg = dict(
     mean=[102.9801, 115.9465, 122.7717], std=[1.0, 1.0, 1.0], to_rgb=False)
 data = dict(
-    imgs_per_gpu=1,
+    imgs_per_gpu=2,
     workers_per_gpu=2,
     train=dict(
         type=dataset_type,
         ann_file=data_root + 'annotations/instances_train2017.json',
         img_prefix=data_root + 'train2017/',
-        img_scale=(1333, 800),
+        img_scale=[(1333, 800), (1111, 666), (889, 533), (667, 400), (445, 267)],
         img_norm_cfg=img_norm_cfg,
-        size_divisor=16,
+        size_divisor=32,
         flip_ratio=0.5,
         with_mask=False,
         with_crowd=True,
@@ -145,48 +143,41 @@ data = dict(
         type=dataset_type,
         ann_file=data_root + 'annotations/instances_val2017.json',
         img_prefix=data_root + 'val2017/',
-        img_scale=(1333, 800),
+        img_scale=(889, 533),
         img_norm_cfg=img_norm_cfg,
-        size_divisor=16,
+        size_divisor=32,
         flip_ratio=0,
         with_mask=False,
         with_crowd=True,
         with_label=True,
         with_semantic_seg=True,
         with_cap=False,
-        seg_prefix=data_root+'annotations/val2017',
+        seg_prefix=data_root+'annotations/train2017',
         seg_scale_factor=1,
         cap_f=data_root+'annotations/caps_coco17.json',
         split="VAL",
         cap_dir=data_root+'annotations/caps/'),
-    test=dict(
-        type=dataset_type,
-        ann_file=data_root + 'annotations/instances_val2017.json',
-        img_prefix=data_root + 'val2017/',
-        img_scale=(1333, 800),
-        img_norm_cfg=img_norm_cfg,
-        size_divisor=16,
-        flip_ratio=0,
-        with_mask=False,
-        with_label=False,
-        test_mode=True,
-        with_semantic_seg=True,
-        with_cap=False,
-        seg_prefix=data_root+'annotations/val2017',
-        seg_scale_factor=1,
-        cap_f=data_root+'annotations/caps_coco17.json',
-        split="VAL",
-        cap_dir=data_root+'annotations/caps/'))
+    test=None)
+    # test=dict(
+    #     type=dataset_type,
+    #     ann_file=data_root + 'annotations/instances_val2017.json',
+    #     img_prefix=data_root + 'val2017/',
+    #     img_scale=(1333, 800),
+    #     img_norm_cfg=img_norm_cfg,
+    #     size_divisor=16,
+    #     flip_ratio=0,
+    #     with_mask=False,
+    #     with_label=False,
+    #     test_mode=True))
 # optimizer
-optimizer = dict(type='SGD', lr=0.01, momentum=0.9, weight_decay=0.0001)
+optimizer = dict(type='SGD', lr=2.5e-4, momentum=0.9, weight_decay=5e-4)
 optimizer_config = dict(grad_clip=dict(max_norm=35, norm_type=2))
 # learning policy
 lr_config = dict(
-    policy='step',
-    warmup='linear',
-    warmup_iters=500,
-    warmup_ratio=1.0 / 3,
-    step=[8, 11, 16, 22])
+    policy='poly',
+    power=0.9,
+    by_epoch=False,
+    )
 checkpoint_config = dict(interval=1)
 # yapf:disable
 log_config = dict(
@@ -197,10 +188,10 @@ log_config = dict(
     ])
 # yapf:enable
 # runtime settings
-total_epochs = 24
+total_epochs = 12
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
-work_dir = './work_dirs/seg_r50_nofcn_sgd_2x'
-load_from = './epoch_24.pth'
+work_dir = '/mnt/work_dirs/seg_r101_msc_poly_1x'
+load_from = None
 resume_from = None
 workflow = [('train', 1)]

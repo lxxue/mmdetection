@@ -117,3 +117,4 @@ data
 work_dirs/
 
 *.pth
+*.swp

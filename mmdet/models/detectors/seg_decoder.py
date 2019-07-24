@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import numpy as np
+from PIL import Image
 
 from mmdet.models.builder import build_loss
 
@@ -36,16 +37,49 @@ class DeeplabDecoder(nn.Module):
         self.aspp.apply(_init_weights)
 
     def loss(self,
-             pred_segs,
+             logits,
              gt_segs,
              weight=1.0):
         losses = dict()
         # print(pred_segs.shape)
         # print(gt_segs.shape)
         # print(torch.squeeze(gt_segs, dim=1))
-        losses['loss_seg'] = weight * self.loss_seg(pred_segs, torch.squeeze(gt_segs, dim=1))
+        if isinstance(logits, list):
+            iter_loss = 0
+            for logit in logits:
+                _, _, H, W = logit.shape
+                # size – The requested size in pixels, as a 2-tuple: (width, height).
+                labels_ = _resize_labels(gt_segs, size=(W, H))
+                # print(logit.shape)
+                # print(labels_.shape)
+                iter_loss += weight * self.loss_seg(logit, torch.squeeze(labels_.to(logit.device), dim=1))
+            losses['loss_seg'] = iter_loss
+        else:
+            _, _, H, W = logits.shape
+            # size – The requested size in pixels, as a 2-tuple: (width, height).
+            labels_ = _resize_labels(gt_segs, size=(W, H))
+            losses['loss_seg'] = weight * self.loss_seg(logits, torch.squeeze(labels_, dim=1))
         # print(type(losses))
+
+        # losses['loss_seg'] = weight * self.loss_seg(logits, torch.squeeze(gt_segs, dim=1))
+
         return losses
+
+def _resize_labels(labels, size):
+    """
+    Downsample labels for 0.5x and 0.75x logits by nearest interpolation.
+    Other nearest methods result in misaligned labels.
+    -> F.interpolate(labels, shape, mode='nearest')
+    -> cv2.resize(labels, shape, interpolation=cv2.INTER_NEAREST)
+    """
+    new_labels = []
+    for label in labels:
+        label = label.detach().cpu().float().numpy()
+        label = Image.fromarray(label).resize(size, resample=Image.NEAREST)
+        new_labels.append(np.asarray(label))
+    new_labels = torch.LongTensor(new_labels)
+    return new_labels
+ 
 
 
 class _ASPP(nn.Module):

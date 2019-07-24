@@ -219,10 +219,11 @@ class MyCocoDataset(CocoDataset):
                     'jpg', 'png')),
                 flag='unchanged')
             gt_seg = self.seg_transform(gt_seg.squeeze(), img_scale, flip)
+            gt_seg = gt_seg[None, ...]
             # gt_seg = mmcv.imrescale(
             #     gt_seg, self.seg_scale_factor, interpolation='nearest')
-            gt_seg = resize_label(gt_seg, self.size_divisor) 
-            gt_seg = gt_seg[None, ...]
+            # gt_seg = resize_label(gt_seg, self.size_divisor) 
+            # gt_seg = gt_seg[None, ...]
         if self.proposals is not None:
             proposals = self.bbox_transform(proposals, img_shape, scale_factor,
                                             flip)
@@ -347,11 +348,12 @@ class MyCocoDataset(CocoDataset):
             data['allcaps'] = to_tensor(self.enc_captions[idx*self.cpi:(idx+1)*self.api])
         return data
 
-def resize_label(label, size_divisor):
-    H, W = label.shape
-    size = (W//size_divisor, H//size_divisor)
-    label = Image.fromarray(label).resize(size, resample=Image.NEAREST)
-    return np.asarray(label)
+# def resize_label(label, size_divisor):
+#     H, W = label.shape
+#     # official doc: size – The requested size in pixels, as a 2-tuple: (width, height).
+#     size = (W//size_divisor, H//size_divisor)
+#     label = Image.fromarray(label).resize(size, resample=Image.NEAREST)
+#     return np.asarray(label)
 
 if __name__ == "__main__":
     img_norm_cfg = dict(mean=[123.675, 116.28, 103.53], std=[58.395, 57.12, 57.375], to_rgb=True)

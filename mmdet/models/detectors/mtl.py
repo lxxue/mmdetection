@@ -29,6 +29,7 @@ class EncoderDecoder(BaseDetector, RPNTestMixin, BBoxTestMixin,
                  pretrained=None,
                  seg_cfg=None,
                  cap_cfg=None,
+                 seg_scales=[0.5, 0.75],
                  ):
         super(EncoderDecoder, self).__init__()
         self.backbone = builder.build_backbone(backbone)
@@ -59,6 +60,7 @@ class EncoderDecoder(BaseDetector, RPNTestMixin, BBoxTestMixin,
 
         if seg_cfg is not None:
             self.seg_decoder = DeeplabDecoder(**seg_cfg)
+            self.seg_scales = seg_scales
         if cap_cfg is not None:
             self.cap_decoder = CapDecoder(**cap_cfg)
 
@@ -220,8 +222,20 @@ class EncoderDecoder(BaseDetector, RPNTestMixin, BBoxTestMixin,
 
         # seg head forward and loss
         if self.with_seg:
-            pred_segs = self.seg_decoder(x)
-            loss_seg = self.seg_decoder.loss(pred_segs, torch.squeeze(gt_seg, dim=1), weight=self.seg_decoder.weight)
+            logits = self.seg_decoder(x)
+            if self.seg_scales is not None:
+                _, _, H, W = logits.shape
+                interp = lambda l: F.interpolate(l, size=(H, W), mode='bilinear', align_corners=False)
+                logits_pyramid = []
+                for p in self.seg_scales:
+                    h = F.interpolate(img, scale_factor=p, mode='bilinear', align_corners=False)
+                    logits_pyramid.append(self.seg_decoder(self.extract_feat(h)))
+                logits_all = [logits] + [interp(l) for l in logits_pyramid]
+                logits_max = torch.max(torch.stack(logits_all), dim=0)[0]
+                logits_list = [logits] + logits_pyramid + [logits_max]
+            else:
+                logits_list = logits
+            loss_seg = self.seg_decoder.loss(logits_list, torch.squeeze(gt_seg, dim=1), weight=self.seg_decoder.weight)
             losses.update(loss_seg)
 
         # cap head forward and loss
