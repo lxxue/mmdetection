@@ -152,7 +152,7 @@ data = dict(
         with_label=True,
         with_semantic_seg=True,
         with_cap=False,
-        seg_prefix=data_root+'annotations/train2017',
+        seg_prefix=data_root+'annotations/val2017',
         seg_scale_factor=1,
         cap_f=data_root+'annotations/caps_coco17.json',
         split="VAL",
@@ -188,7 +188,7 @@ log_config = dict(
     ])
 # yapf:enable
 # runtime settings
-total_epochs = 12
+total_epochs = 6
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
 work_dir = '/mnt/work_dirs/seg_r101_msc_poly_1x'
