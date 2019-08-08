@@ -116,7 +116,7 @@ test_cfg = dict(
         score_thr=0.05, nms=dict(type='nms', iou_thr=0.5), max_per_img=100))
 # dataset settings
 dataset_type = 'MyCocoDataset'
-data_root = '/data/home/v-lixxue/coco17/'
+data_root = '/mnt/coco17/'
 img_norm_cfg = dict(
     mean=[102.9801, 115.9465, 122.7717], std=[1.0, 1.0, 1.0], to_rgb=False)
 data = dict(
@@ -206,10 +206,10 @@ log_config = dict(
     ])
 # yapf:enable
 # runtime settings
-total_epochs = 12
+total_epochs = 6
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
-work_dir = './work_dirs/seg_r50_poly_1x'
+work_dir = '/mnt/work_dirs/seg_r50_poly_1x'
 load_from = None
 resume_from = None
 workflow = [('train', 1)]
