@@ -2,10 +2,10 @@
 norm_cfg = dict(type='BN', requires_grad=False)
 model = dict(
     type='EncoderDecoder',
-    pretrained='modelzoo://resnet101',
+    pretrained='modelzoo://resnet50',
     backbone=dict(
         type='ResNet',
-        depth=101,
+        depth=50,
         num_stages=4,
         # strides=(1, 2, 2),
         # dilations=(1, 1, 1),
@@ -191,7 +191,7 @@ log_config = dict(
 total_epochs = 12
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
-work_dir = '/mnt/work_dirs/cap_r101_adam_256_stage1'
+work_dir = '/mnt/work_dirs/cap_r50_adam_256_stage1'
 load_from = None
 resume_from = None
 workflow = [('train', 1)]

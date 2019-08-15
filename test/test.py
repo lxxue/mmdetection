@@ -15,6 +15,7 @@ from mmdet.apis import init_dist
 from mmdet.core import results2json, coco_eval, wrap_fp16_model
 from mmdet.datasets import build_dataloader, build_dataset
 from mmdet.models import build_detector
+from nltk.translate.bleu_score import corpus_bleu
 
 
 def single_gpu_test(model, data_loader, show=False):
@@ -193,6 +194,18 @@ def main():
             seg_scores = scores(gt_segs, preds, n_class=182)
             print(seg_scores)
             mmcv.dump(seg_scores, args.out)
+
+        if 'cap' in outputs[0]:
+            hypotheses = [result['cap']['hypothesis'] for result in outputs]
+            references = [result['cap']['reference'] for result in outputs]
+            print(hypotheses[0])
+            print(references[0])
+            print(len(hypotheses))
+            print(len(references))
+            bleu4 = corpus_bleu(references, hypotheses)
+            print("bleu4: ", bleu4)
+            mmcv.dump({'bleu4': bleu4}, args.out)
+
 
         
     # if args.out and rank == 0:

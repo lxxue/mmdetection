@@ -345,7 +345,7 @@ class MyCocoDataset(CocoDataset):
             data['gt_caps'] = to_tensor(self.enc_captions[rnd_idx])
             # data['gt_caplens'] = DC(to_tensor(self.caplens[rnd_idx]))
             data['gt_caplens'] = to_tensor(np.array(self.caplens[rnd_idx]))
-            data['allcaps'] = to_tensor(self.enc_captions[idx*self.cpi:(idx+1)*self.api])
+            data['allcaps'] = to_tensor(self.enc_captions[idx*self.cpi:(idx+1)*self.cpi])
         return data
 
 # def resize_label(label, size_divisor):

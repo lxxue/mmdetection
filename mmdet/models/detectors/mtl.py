@@ -1,6 +1,10 @@
+import os
+import json
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torch.nn.utils.rnn import pack_padded_sequence
 
 from mmdet.models.detectors.base import BaseDetector
 from mmdet.models.detectors.test_mixins import RPNTestMixin, BBoxTestMixin, MaskTestMixin
@@ -288,15 +292,18 @@ class EncoderDecoder(BaseDetector, RPNTestMixin, BBoxTestMixin,
 
 
         if self.with_cap:
-            predictions, caps_sorted, decode_lengths, alphas, sort_ind = self.cap_decoder(x[-1], gt_caps, gt_caplens)
+            word_map_file = os.path.join("/mnt/coco17/annotations/caps", "WORDMAP_COCO_5_cap_per_img_5_min_word_freq.json")
+            with open(word_map_file, 'r') as j:
+                word_map = json.load(j)
+            scores, caps_sorted, decode_lengths, alphas, sort_ind = self.cap_decoder(x[-1], gt_caps, gt_caplens)
             # Since we decoded starting with <start>, the targets are all words after <start>, up to <end>
             targets = caps_sorted[:, 1:]
 
             # Remove timesteps that we didn't decode at, or are pads
             # pack_padded_sequence is an easy trick to do this
             scores_copy = scores.clone()
-            scores, _ = pack_padded_sequence(scores, decode_lengths, batch_first=True)
-            targets, _ = pack_padded_sequence(targets, decode_lengths, batch_first=True)
+            scores = pack_padded_sequence(scores, decode_lengths, batch_first=True)
+            targets = pack_padded_sequence(targets, decode_lengths, batch_first=True)
 
             # References
             references = list()
@@ -317,11 +324,18 @@ class EncoderDecoder(BaseDetector, RPNTestMixin, BBoxTestMixin,
                 temp_preds.append(preds[j][:decode_lengths[j]])  # remove pads
             preds = temp_preds
             hypotheses.extend(preds)
+            assert len(references) == len(hypotheses)
+            # print(references)
+            # print(hypotheses)
+            # print(len(references))
+            # print(len(hypotheses))
+            # print(references[0])
+            # print(hypotheses[0])
             result['cap'] = {
-                'score':scores.detach().cpu().numpy(),
-                'target':targets.detach().cpu().numpy(),
-                'hypothesis':hypotheses,
-                'reference':references
+                # 'score':scores.detach().cpu().numpy(),
+                # 'target':targets.detach().cpu().numpy(),
+                'hypothesis':hypotheses[0],
+                'reference':references[0]
             }
 
 
