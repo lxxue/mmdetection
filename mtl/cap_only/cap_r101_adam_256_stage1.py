@@ -119,7 +119,7 @@ test_cfg = dict(
 dataset_type = 'MyCocoDataset'
 data_root = '/mnt/coco17/'
 img_norm_cfg = dict(
-    mean=[102.9801, 115.9465, 122.7717], std=[58.395, 57.12, 57.375], to_rgb=False)
+    mean=[102.9801, 115.9465, 122.7717], std=[58.395, 57.12, 57.375], to_rgb=True)
 data = dict(
     imgs_per_gpu=20,
     workers_per_gpu=4,
